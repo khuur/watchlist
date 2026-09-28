@@ -50,8 +50,6 @@ header {
 }
 
 h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
-.count { font-size: 14px; white-space: nowrap; }
-@media (max-width: 359px) { .count { display: none; } }
 
 .logout {
   flex: none;
@@ -70,8 +68,26 @@ h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 
 .row { display: flex; gap: 8px; }
 
+/* One pill per group; they wrap rather than hide groups off-screen on a phone. */
+.groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.groups button {
+  padding: 7px 13px;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+.groups button:hover { border-color: var(--muted); }
+.groups button[aria-pressed="true"] { color: var(--bg); background: var(--text); border-color: var(--text); }
+.groups .n { margin-left: 6px; font-size: 12px; opacity: 0.65; }
+
 input[type="text"],
-input[type="password"] {
+input[type="url"],
+input[type="password"],
+select {
   flex: 1;
   min-width: 0;
   padding: 12px 14px;
@@ -83,6 +99,7 @@ input[type="password"] {
 }
 
 input:focus-visible,
+select:focus-visible,
 button:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--accent);
@@ -118,16 +135,18 @@ li { display: flex; align-items: center; background: var(--card); border-top: 1p
 li:first-child { border-top: 0; }
 li.dragging { position: relative; z-index: 1; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
 
-li label {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 13px 0 13px 14px;
+/* The circle is the only thing that ticks an item off; its label just makes it easier to hit. */
+.tick {
+  flex: none;
+  align-self: stretch;
+  display: grid;
+  place-content: center;
+  padding: 0 12px 0 14px;
   cursor: pointer;
 }
-.handle + label { padding-left: 4px; }
+.handle + .tick { padding-left: 4px; }
+
+.body { flex: 1; min-width: 0; padding: 13px 0; }
 
 .handle {
   align-self: stretch;
@@ -153,7 +172,14 @@ li label {
 .watched .thumb { opacity: 0.5; filter: grayscale(1); }
 
 .title { min-width: 0; overflow-wrap: anywhere; }
-a.title { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+a.title {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 100%;
+  color: inherit;
+  text-decoration: none;
+}
 .text { min-width: 0; }
 a.title .name {
   text-decoration: underline;
@@ -189,20 +215,33 @@ input[type="checkbox"]:checked::after {
   transform: translateY(-1px) rotate(45deg);
 }
 
-.remove {
+/* Edit and remove: always there on touch screens, on hover with a mouse. */
+.action {
+  flex: none;
   align-self: stretch;
-  padding: 0 16px;
+  display: grid;
+  place-content: center;
+  padding: 0 10px;
   font-size: 22px;
   font-weight: 400;
   color: var(--muted);
   background: none;
 }
-.remove:hover { color: var(--error); }
+.action:hover { color: var(--text); }
+.action.remove { padding-right: 16px; }
+.action.remove:hover { color: var(--error); }
 @media (hover: hover) {
-  li .remove { opacity: 0; }
-  li:hover .remove,
-  .remove:focus-visible { opacity: 1; }
+  li .action { opacity: 0; }
+  li:hover .action,
+  .action:focus-visible { opacity: 1; }
 }
+
+.edit { flex: 1; display: grid; gap: 8px; padding: 12px; }
+.edit input,
+.edit select { padding: 10px 12px; }
+.edit select { flex: 1; }
+.edit button { padding: 10px 16px; }
+button.secondary { color: var(--text); background: none; border: 1px solid var(--line); }
 
 .add { position: relative; }
 .suggestions {

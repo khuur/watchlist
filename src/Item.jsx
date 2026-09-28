@@ -1,15 +1,35 @@
+import { useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { cleanUrl } from "./ops.js";
+import { GROUPS } from "./groups.js";
+import { cleanUrl, groupOf } from "./ops.js";
 
 const hostOf = (url) => new URL(url).hostname.replace(/^www\./, "");
 
-export function Item({ item, onWatched, onRemove, handle, dragging, style, ref }) {
+// Only the circle ticks an item off; a link item's title and picture open the link.
+export function Item({ item, onWatched, onEdit, onRemove, handle, dragging, style, ref }) {
+  const [editing, setEditing] = useState(false);
+
+  if (editing) {
+    return (
+      <li ref={ref} style={style}>
+        <EditForm item={item} onEdit={onEdit} onClose={() => setEditing(false)} />
+      </li>
+    );
+  }
+
   return (
     <li ref={ref} style={style} className={dragging ? "dragging" : undefined}>
       {handle}
-      <label>
-        <input type="checkbox" checked={item.watched} onChange={(e) => onWatched(item, e.target.checked)} />
+      <label className="tick">
+        <input
+          type="checkbox"
+          checked={item.watched}
+          onChange={(e) => onWatched(item, e.target.checked)}
+          aria-label={item.title}
+        />
+      </label>
+      <div className="body">
         {cleanUrl(item.url) ? (
           <a className="title" href={item.url} target="_blank" rel="noopener noreferrer">
             {cleanUrl(item.image) && (
@@ -33,11 +53,58 @@ export function Item({ item, onWatched, onRemove, handle, dragging, style, ref }
         ) : (
           <span className="title name">{item.title}</span>
         )}
-      </label>
-      <button type="button" className="remove" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item)}>
+      </div>
+      <button type="button" className="action" aria-label={`Edit ${item.title}`} onClick={() => setEditing(true)}>
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+          <path
+            d="M11.5 2.5l2 2L5 13l-2.8.8L3 11z"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+      <button type="button" className="action remove" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item)}>
         ×
       </button>
     </li>
+  );
+}
+
+// Title, link and group of one item. Sends only what changed; Escape cancels.
+function EditForm({ item, onEdit, onClose }) {
+  function save(data) {
+    const title = data.get("title").trim().replace(/\s+/g, " ");
+    const url = data.get("url").trim();
+    const group = data.get("group");
+    const op = {
+      ...(title !== item.title && { title }),
+      ...(url !== (item.url ?? "") && { url }),
+      ...(group !== groupOf(item) && { group }),
+    };
+    if (Object.keys(op).length) onEdit({ op: "edit", id: item.id, ...op });
+    onClose();
+  }
+
+  return (
+    <form className="edit" action={save} onKeyDown={(e) => e.key === "Escape" && onClose()}>
+      <input name="title" type="text" defaultValue={item.title} aria-label="Title" required autoFocus />
+      <input name="url" type="url" defaultValue={item.url ?? ""} aria-label="Link" placeholder="Link (optional)" />
+      <div className="row">
+        <select name="group" defaultValue={groupOf(item)} aria-label="Group">
+          {GROUPS.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+        <button type="button" className="secondary" onClick={onClose}>
+          Cancel
+        </button>
+        <button>Save</button>
+      </div>
+    </form>
   );
 }
 

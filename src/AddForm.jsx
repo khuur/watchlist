@@ -26,9 +26,9 @@ function search(query) {
   return searches.get(q);
 }
 
-// The box to add to the list. Typing a name shows IMDb matches to pick from; Enter without
-// picking one takes the match with exactly that name, if there is one.
-export default function AddForm({ onAdd }) {
+// The box to add to the list. With `suggest` (films), typing a name shows IMDb matches to pick
+// from, and Enter without picking one takes the match with exactly that name, if there is one.
+export default function AddForm({ onAdd, placeholder, suggest }) {
   const [text, setText] = useState("");
   const [results, setResults] = useState({ query: "", items: [] });
   const [active, setActive] = useState(-1);
@@ -36,7 +36,7 @@ export default function AddForm({ onAdd }) {
   const listId = useId();
 
   const query = text.trim().replace(/\s+/g, " ");
-  const searchable = query.length >= 2 && !LINK.test(query);
+  const searchable = suggest && query.length >= 2 && !LINK.test(query);
   // Only matches for what's in the box now, so Enter can't pick one meant for earlier text.
   const suggestions = open && searchable && results.query === query ? results.items : [];
 
@@ -70,8 +70,8 @@ export default function AddForm({ onAdd }) {
     if (suggestions[active]) return pick(suggestions[active]);
     reset();
     if (LINK.test(query)) return onAdd(parseEntry(query));
-    const match = (await search(query)).find((r) => sameTitle(r.title, query));
-    onAdd(match ?? { title: query });
+    const match = suggest && (await search(query)).find((r) => sameTitle(r.title, query));
+    onAdd(match || { title: query });
   }
 
   function onKeyDown(event) {
@@ -102,7 +102,7 @@ export default function AddForm({ onAdd }) {
           onKeyDown={onKeyDown}
           onFocus={() => setOpen(true)}
           onBlur={() => setOpen(false)}
-          placeholder="Add a title or paste a link…"
+          placeholder={placeholder}
           aria-label="Title or link"
           role="combobox"
           aria-autocomplete="list"

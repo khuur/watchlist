@@ -101,12 +101,13 @@ export default async (req) => {
     return json({ error: "Body is not JSON" }, 400);
   }
 
-  // A link gets the page's own title and image, unless it came with them.
-  const url = op?.op === "add" && cleanUrl(op.url);
-  const hasTitle = Boolean(op?.title?.trim?.());
-  if (url && !(hasTitle && (op.image || isYouTube(url)))) {
+  // A new link gets the page's own image, and when added without a title, the page's title too.
+  // (YouTube's thumbnail needs no fetch: ops.js works it out from the link.)
+  const url = (op?.op === "add" || op?.op === "edit") && cleanUrl(op.url);
+  const needsTitle = op?.op === "add" && !op.title?.trim?.();
+  if (url && (needsTitle || (!op.image && !isYouTube(url)))) {
     const preview = await fetchPreview(url);
-    op = { ...op, title: hasTitle ? op.title : preview.title, image: op.image || preview.image };
+    op = { ...op, ...(needsTitle && { title: preview.title }), image: op.image || preview.image };
   }
 
   // Two devices can save at the same moment: write only over the version just read, else read again.

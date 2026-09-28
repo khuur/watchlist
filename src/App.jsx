@@ -1,30 +1,13 @@
 import { useState } from "react";
 import KeyForm from "./KeyForm.jsx";
+import { load, save } from "./storage.js";
 import Watchlist from "./Watchlist.jsx";
 
-const STORAGE_KEY = "watchlist-key";
-
-// Storage can be unavailable (private mode, blocked site data); the page then asks for the key each visit.
-function readKey() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) ?? "";
-  } catch {
-    return "";
-  }
-}
-
-function saveKey(value) {
-  try {
-    if (value) localStorage.setItem(STORAGE_KEY, value);
-    else localStorage.removeItem(STORAGE_KEY);
-  } catch {}
-}
-
 export default function App() {
-  const [listKey, setListKey] = useState(readKey);
+  const [listKey, setListKey] = useState(() => load("watchlist-key"));
 
   function openList(value) {
-    saveKey(value);
+    save("watchlist-key", value);
     setListKey(value);
   }
 

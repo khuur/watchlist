@@ -2,13 +2,16 @@
 
 A simple list of what to watch, at https://watchlist.bleiweis.si.
 
-Type a title and press Enter. Tick it once watched and it moves to **Watched**; × removes it, with Undo
-for a few seconds. Drag an item by its handle (⠿) to change its place in the list; on a keyboard,
-focus the handle and press Space, the arrows, then Space.
+The list is split into groups: **Podcasts, Songs, Movies, Education, Questions**. Pick one and type
+a title; it goes into that group. Tick the circle once it's done and it moves to the group's finished
+section (Watched, Listened, Done, Answered); only the circle ticks, clicking the rest of an item does
+nothing. ✎ edits the title, the link and the group; × removes the item, with Undo for a few seconds.
+Drag an item by its handle (⠿) to change its place; on a keyboard, focus the handle and press Space,
+the arrows, then Space.
 
-While you type, matching films and series from IMDb show up with their posters; pick one to add it
-with its poster, year and IMDb link. Pressing Enter without picking takes the IMDb match with exactly
-that name, if there is one, and otherwise adds the plain text.
+In Movies, matching films and series from IMDb show up with their posters as you type; pick one to add
+it with its poster, year and IMDb link. Pressing Enter without picking takes the IMDb match with
+exactly that name, if there is one, and otherwise adds the plain text.
 
 Links work too: paste one on its own and the server looks up the page's title and preview image
 (YouTube's title through its oEmbed API and its thumbnail from the video id; other sites through
@@ -28,11 +31,13 @@ src/
   main.jsx          entry
   App.jsx           remembers the key, shows KeyForm or Watchlist
   KeyForm.jsx       asks for the key
-  Watchlist.jsx     the list, reordered with dnd-kit
+  Watchlist.jsx     the list, one group at a time, reordered with dnd-kit
   AddForm.jsx       the box to add to it, with IMDb suggestions
-  Item.jsx          one item, and its draggable form
+  Item.jsx          one item, its edit form, and its draggable form
   useList.js        loads the list, applies changes at once, saves them in order
-  ops.js            the list changes (add, watched, remove, restore, move), shared with the function
+  ops.js            the list changes (add, watched, edit, remove, restore, move), shared with the function
+  groups.js         the groups and their wording
+  storage.js        what the device remembers (the key, the last group)
 netlify/functions/
   list.mjs          GET /api/list returns the list, POST /api/list applies one change
                     (and fetches a pasted link's title and image)

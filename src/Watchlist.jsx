@@ -8,8 +8,10 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import AddForm from "./AddForm.jsx";
+import { GROUPS, groupById } from "./groups.js";
 import { Item, SortableItem } from "./Item.jsx";
-import { cleanUrl, findDuplicate } from "./ops.js";
+import { cleanUrl, findDuplicate, groupOf } from "./ops.js";
+import { load, save } from "./storage.js";
 import { useList } from "./useList.js";
 
 const byWatchedAt = (a, b) => (b.watchedAt ?? "").localeCompare(a.watchedAt ?? "");
@@ -17,6 +19,7 @@ const byWatchedAt = (a, b) => (b.watchedAt ?? "").localeCompare(a.watchedAt ?? "
 export default function Watchlist({ listKey, onLogout }) {
   const { list, error, change } = useList(listKey);
   const [toast, setToast] = useState(null); // { message, undo? }
+  const [group, setGroup] = useState(() => groupById(load("watchlist-group")).id);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -28,13 +31,10 @@ export default function Watchlist({ listKey, onLogout }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  const open = list?.items.filter((it) => !it.watched) ?? [];
-
   // Shown while loading too, so a list that won't load can still be left.
   const header = (
     <header>
       <h1>Watchlist</h1>
-      {open.length > 0 && <span className="muted count">{open.length} to watch</span>}
       <button type="button" className="logout" onClick={onLogout}>
         Log out
       </button>
@@ -50,22 +50,36 @@ export default function Watchlist({ listKey, onLogout }) {
     );
   }
 
-  const watched = list.items.filter((it) => it.watched).sort(byWatchedAt);
+  const current = groupById(group);
+  const inGroup = list.items.filter((it) => groupOf(it) === group);
+  const open = inGroup.filter((it) => !it.watched);
+  const watched = inGroup.filter((it) => it.watched).sort(byWatchedAt);
+  const openCount = (id) => list.items.filter((it) => !it.watched && groupOf(it) === id).length;
+
+  function showGroup(id) {
+    setGroup(id);
+    save("watchlist-group", id);
+  }
 
   function add({ title = "", url = "", image, info }) {
-    const existing = findDuplicate(list.items, { title, url: cleanUrl(url) });
+    const existing = findDuplicate(list.items, { title, url: cleanUrl(url), group });
     if (existing) return setToast({ message: `“${existing.title}” is already on the list` });
-    change({ op: "add", id: crypto.randomUUID(), title, url, image, info });
+    change({ op: "add", id: crypto.randomUUID(), group, title, url, image, info });
   }
 
   function setWatched(item, isWatched) {
     change({ op: "watched", id: item.id, watched: isWatched });
     if (isWatched) {
       setToast({
-        message: `Watched “${item.title}”`,
+        message: `${groupById(groupOf(item)).done} “${item.title}”`,
         undo: () => change({ op: "watched", id: item.id, watched: false }),
       });
     }
+  }
+
+  function edit(op) {
+    change(op);
+    if (op.group) setToast({ message: `Moved to ${groupById(op.group).name}` });
   }
 
   function remove(item) {
@@ -95,7 +109,19 @@ export default function Watchlist({ listKey, onLogout }) {
     <>
       {header}
 
-      <AddForm onAdd={add} />
+      <nav className="groups" aria-label="Groups">
+        {GROUPS.map((g) => {
+          const count = openCount(g.id);
+          return (
+            <button key={g.id} type="button" aria-pressed={g.id === group} onClick={() => showGroup(g.id)}>
+              {g.name}
+              {count > 0 && <span className="n">{count}</span>}
+            </button>
+          );
+        })}
+      </nav>
+
+      <AddForm onAdd={add} placeholder={current.placeholder} suggest={group === "movies"} />
 
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -110,23 +136,25 @@ export default function Watchlist({ listKey, onLogout }) {
           <SortableContext items={open.map((it) => it.id)} strategy={verticalListSortingStrategy}>
             <ul>
               {open.map((item) => (
-                <SortableItem key={item.id} item={item} onWatched={setWatched} onRemove={remove} />
+                <SortableItem key={item.id} item={item} onWatched={setWatched} onEdit={edit} onRemove={remove} />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       ) : (
         <p className="empty muted">
-          {list.isNew ? "There's no list under this key yet. Add something to start one." : "Nothing to watch yet."}
+          {list.isNew ? "There's no list under this key yet. Add something to start one." : "Nothing here yet."}
         </p>
       )}
 
       {watched.length > 0 && (
         <details>
-          <summary>Watched ({watched.length})</summary>
+          <summary>
+            {current.done} ({watched.length})
+          </summary>
           <ul className="watched">
             {watched.map((item) => (
-              <Item key={item.id} item={item} onWatched={setWatched} onRemove={remove} />
+              <Item key={item.id} item={item} onWatched={setWatched} onEdit={edit} onRemove={remove} />
             ))}
           </ul>
         </details>

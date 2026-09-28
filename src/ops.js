@@ -1,5 +1,6 @@
 // Changes to the list. The page applies them at once, the server applies them for good,
 // so both share this one file.
+import { DEFAULT_GROUP, GROUPS } from "./groups.js";
 
 export const MIN_KEY = 6;
 const MAX_TITLE = 200;
@@ -38,9 +39,13 @@ const validId = (id) => typeof id === "string" && /^[\w-]{1,64}$/.test(id);
 
 export const sameTitle = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) === 0;
 
-// An item still to watch with the same link, or with the same title when there's no link.
-export const findDuplicate = (items, { title, url }) =>
-  items.find((it) => !it.watched && (url ? it.url === url : sameTitle(it.title, title)));
+export const groupOf = (item) => (GROUPS.some((g) => g.id === item.group) ? item.group : DEFAULT_GROUP);
+
+// An item still to do in the same group with the same link, or with the same title when there's no link.
+export const findDuplicate = (items, { title, url, group }) =>
+  items.find(
+    (it) => !it.watched && groupOf(it) === groupOf({ group }) && (url ? it.url === url : sameTitle(it.title, title)),
+  );
 
 export function apply(items, op) {
   switch (op?.op) {
@@ -48,12 +53,14 @@ export function apply(items, op) {
       const url = cleanUrl(op.url);
       const title = cleanTitle(op.title) || (url && titleFromUrl(url));
       if (!title) return { error: "Title is empty" };
-      if (findDuplicate(items, { title, url })) return { items };
+      const group = groupOf(op);
+      if (findDuplicate(items, { title, url, group })) return { items };
       const id = validId(op.id) && !items.some((it) => it.id === op.id) ? op.id : crypto.randomUUID();
       const image = url && (cleanUrl(op.image) || youtubeThumb(url));
       const info = cleanText(op.info, MAX_INFO);
       const item = {
         id,
+        group,
         title,
         ...(url && { url }),
         ...(image && { image }),
@@ -71,6 +78,24 @@ export function apply(items, op) {
           return op.watched ? { ...rest, watched: true, watchedAt: new Date().toISOString() } : { ...rest, watched: false };
         }),
       };
+    case "edit": {
+      // Changes only what the edit names: title, group, and link (an empty link removes it).
+      const title = op.title === undefined ? undefined : cleanTitle(op.title);
+      if (title === "") return { error: "Title is empty" };
+      return {
+        items: items.map((it) => {
+          if (it.id !== op.id) return it;
+          let next = { ...it, ...(title && { title }), ...(op.group !== undefined && { group: groupOf(op) }) };
+          if (op.url !== undefined) {
+            const { url: _url, image: _image, info: _info, ...rest } = next;
+            const url = cleanUrl(op.url);
+            const image = url && (cleanUrl(op.image) || youtubeThumb(url));
+            next = { ...rest, ...(url && { url }), ...(image && { image }) };
+          }
+          return next;
+        }),
+      };
+    }
     case "remove":
       return { items: items.filter((it) => it.id !== op.id) };
     case "move": {
@@ -93,6 +118,7 @@ export function apply(items, op) {
       const info = cleanText(item.info, MAX_INFO);
       const restored = {
         id: item.id,
+        group: groupOf(item),
         title,
         ...(url && { url }),
         ...(image && { image }),
