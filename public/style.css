@@ -88,7 +88,19 @@ button {
 
 #login label { display: block; margin-bottom: 8px; font-weight: 600; }
 #login button { padding: 12px 18px; }
+.hint { margin: 10px 0 0; font-size: 14px; }
 .error { min-height: 1.4em; color: var(--error); }
+
+.link {
+  display: block;
+  margin: 40px auto 0;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  background: none;
+}
+.link:hover { color: var(--text); text-decoration: underline; }
 
 ul {
   margin: 16px 0 0;

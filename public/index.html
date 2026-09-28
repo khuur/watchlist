@@ -23,11 +23,14 @@
     <p id="loading" class="muted">Loading…</p>
 
     <form id="login" hidden>
-      <label for="password">Password</label>
+      <label for="key">Key</label>
       <div class="row">
-        <input id="password" type="password" autocomplete="current-password" required>
+        <input id="key" type="password" autocomplete="current-password" minlength="6" required
+               aria-describedby="key-hint">
         <button>Open</button>
       </div>
+      <p id="key-hint" class="muted hint">Each key opens its own list, on any device. A new key starts a new list,
+        so pick something only you know, at least 6 characters.</p>
       <p id="login-error" class="error" role="alert"></p>
     </form>
 
@@ -38,11 +41,12 @@
         <button>Add</button>
       </form>
       <ul id="todo"></ul>
-      <p id="empty" class="muted">Nothing to watch yet.</p>
+      <p id="empty" class="muted"></p>
       <details id="watched">
         <summary>Watched <span id="done-count"></span></summary>
         <ul id="done"></ul>
       </details>
+      <button id="switch" type="button" class="link">Use another key</button>
     </section>
   </main>
 

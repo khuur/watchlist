@@ -1,42 +1,43 @@
 import { apply, sameTitle } from "./ops.js";
 
-const PASSWORD_KEY = "watchlist-password";
+const KEY_STORAGE = "watchlist-key";
 const $ = (id) => document.getElementById(id);
 
-let password = readPassword();
+let key = readKey();
 let items = [];
+let isNew = false; // nothing saved under this key yet
 let queue = Promise.resolve();
 let pending = 0;
 
-function readPassword() {
+function readKey() {
   try {
-    return localStorage.getItem(PASSWORD_KEY) ?? "";
+    return localStorage.getItem(KEY_STORAGE) ?? "";
   } catch {
     return "";
   }
 }
 
-function rememberPassword(value) {
+function rememberKey(value) {
   try {
-    if (value) localStorage.setItem(PASSWORD_KEY, value);
-    else localStorage.removeItem(PASSWORD_KEY);
+    if (value) localStorage.setItem(KEY_STORAGE, value);
+    else localStorage.removeItem(KEY_STORAGE);
   } catch {}
 }
 
-async function request(op) {
+async function request(op, withKey = key) {
   const res = await fetch("/api/list", {
     method: op ? "POST" : "GET",
     headers: {
-      authorization: `Bearer ${encodeURIComponent(password)}`,
+      authorization: `Bearer ${encodeURIComponent(withKey)}`,
       ...(op && { "content-type": "application/json" }),
     },
     body: op && JSON.stringify(op),
     cache: "no-store",
   });
   const body = await res.json().catch(() => ({}));
-  if (res.status === 401) throw Object.assign(new Error(body.error || "Wrong password"), { locked: true });
+  if (res.status === 401) throw Object.assign(new Error(body.error || "Wrong key"), { locked: true });
   if (!res.ok) throw new Error(body.error || `Server answered ${res.status}`);
-  return body;
+  return { items: body, isNew: res.headers.has("x-list-new") };
 }
 
 function show(view) {
@@ -47,10 +48,11 @@ function show(view) {
 }
 
 async function load() {
+  const asked = key;
   try {
-    const fresh = await request();
-    if (pending) return; // a change went out meanwhile; its answer is newer
-    items = fresh;
+    const fresh = await request(null, asked);
+    if (pending || asked !== key) return; // a change went out meanwhile, or the key changed
+    ({ items, isNew } = fresh);
     render();
     show("list");
   } catch (err) {
@@ -60,11 +62,8 @@ async function load() {
 
 function fail(err) {
   if (err.locked) {
-    rememberPassword("");
-    password = "";
-    show("login");
+    forgetKey();
     $("login-error").textContent = err.message;
-    $("password").focus();
   } else if ($("list").hidden) {
     show("login");
     $("login-error").textContent = `Couldn't load the list: ${err.message}`;
@@ -73,23 +72,36 @@ function fail(err) {
   }
 }
 
+function forgetKey() {
+  rememberKey("");
+  key = "";
+  items = [];
+  isNew = false;
+  $("login-error").textContent = "";
+  show("login");
+  $("key").focus();
+}
+
 // Shows the change at once, then saves it; changes go out one after another, in order.
 function change(op) {
   const result = apply(items, op);
   if (result.error) return;
   items = result.items;
   render();
+  const withKey = key;
   pending++;
   queue = queue
-    .then(() => request(op))
+    .then(() => request(op, withKey))
     .then((saved) => {
-      if (--pending === 0) {
-        items = saved;
+      if (--pending === 0 && withKey === key) {
+        items = saved.items;
+        isNew = false;
         render();
       }
     })
     .catch((err) => {
       pending--;
+      if (withKey !== key) return;
       fail(err);
       if (!pending && !err.locked) load();
     });
@@ -104,6 +116,9 @@ function render() {
   $("done").replaceChildren(...done.map(row));
   $("count").textContent = open.length ? `${open.length} to watch` : "";
   $("empty").hidden = open.length > 0;
+  $("empty").textContent = isNew
+    ? "There's no list under this key yet. Add something to start one."
+    : "Nothing to watch yet.";
   $("watched").hidden = done.length === 0;
   $("done-count").textContent = `(${done.length})`;
 }
@@ -180,12 +195,14 @@ $("add").addEventListener("submit", (event) => {
 
 $("login").addEventListener("submit", async (event) => {
   event.preventDefault();
-  password = $("password").value;
+  const entered = $("key").value;
   $("login-error").textContent = "";
   try {
-    items = await request();
-    rememberPassword(password);
-    $("password").value = "";
+    const fresh = await request(null, entered);
+    key = entered;
+    ({ items, isNew } = fresh);
+    rememberKey(key);
+    $("key").value = "";
     render();
     show("list");
     $("title").focus();
@@ -194,13 +211,15 @@ $("login").addEventListener("submit", async (event) => {
   }
 });
 
+$("switch").addEventListener("click", forgetKey);
+
 // Pick up changes made on another device when coming back to this one.
 document.addEventListener("visibilitychange", () => {
-  if (document.visibilityState === "visible" && password && !pending && !$("list").hidden) load();
+  if (document.visibilityState === "visible" && key && !pending && !$("list").hidden) load();
 });
 
-if (password) load();
+if (key) load();
 else {
   show("login");
-  $("password").focus();
+  $("key").focus();
 }
