@@ -114,8 +114,9 @@ ul {
   overflow: hidden;
 }
 
-li { display: flex; align-items: center; border-top: 1px solid var(--line); }
+li { display: flex; align-items: center; background: var(--card); border-top: 1px solid var(--line); }
 li:first-child { border-top: 0; }
+li.dragging { position: relative; z-index: 1; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
 
 li label {
   flex: 1;
@@ -126,8 +127,34 @@ li label {
   padding: 13px 0 13px 14px;
   cursor: pointer;
 }
+.handle + label { padding-left: 4px; }
+
+.handle {
+  align-self: stretch;
+  display: grid;
+  place-content: center;
+  padding: 0 4px 0 12px;
+  color: var(--muted);
+  background: none;
+  cursor: grab;
+  touch-action: none;
+}
+.handle:active { cursor: grabbing; }
+
+.thumb {
+  flex: none;
+  height: 54px;
+  width: auto;
+  max-width: 96px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: var(--line);
+}
+.watched .thumb { opacity: 0.5; filter: grayscale(1); }
+
 .title { min-width: 0; overflow-wrap: anywhere; }
-a.title { color: inherit; text-decoration: none; }
+a.title { display: flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+.text { min-width: 0; }
 a.title .name {
   text-decoration: underline;
   text-decoration-color: var(--line);
@@ -135,6 +162,7 @@ a.title .name {
 }
 a.title:hover .name { text-decoration-color: currentColor; }
 .title small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
+.host { white-space: nowrap; }
 .watched .title { color: var(--muted); }
 .watched .name,
 .watched a.title .name { text-decoration: line-through; }
@@ -175,6 +203,22 @@ input[type="checkbox"]:checked::after {
   li:hover .remove,
   .remove:focus-visible { opacity: 1; }
 }
+
+.add { position: relative; }
+.suggestions {
+  position: absolute;
+  z-index: 2;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 6px;
+  box-shadow: 0 10px 30px rgb(0 0 0 / 0.16);
+}
+.suggestions li { gap: 12px; padding: 8px 12px; cursor: pointer; }
+.suggestions li[aria-selected="true"],
+.suggestions li:hover { background: color-mix(in srgb, var(--accent) 10%, var(--card)); }
+.suggestions .thumb { width: 32px; height: 48px; }
+.suggestions small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
 
 .empty { margin: 36px 0; text-align: center; }
 

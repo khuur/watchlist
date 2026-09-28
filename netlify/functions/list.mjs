@@ -25,18 +25,20 @@ const decodeEntities = (text) =>
       : String.fromCodePoint(name[1].toLowerCase() === "x" ? parseInt(name.slice(2), 16) : Number(name.slice(1))),
   );
 
-// og:title (or twitter:title), else <title>.
-function titleFromHtml(html) {
+// A page's <meta property|name=… content=…> tags, first of each name.
+function metaTags(html) {
+  const tags = {};
   for (const tag of html.match(/<meta\b[^>]*>/gi) ?? []) {
-    if (/\b(property|name)=["'](og|twitter):title["']/i.test(tag)) {
-      const content = tag.match(/\bcontent=(["'])(.*?)\1/is)?.[2];
-      if (content?.trim()) return content;
-    }
+    const name = tag.match(/\b(?:property|name)=(["'])(.*?)\1/i)?.[2].toLowerCase();
+    const content = tag.match(/\bcontent=(["'])(.*?)\1/is)?.[2].trim();
+    if (name && content && !(name in tags)) tags[name] = decodeEntities(content);
   }
-  return html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] ?? "";
+  return tags;
 }
 
-// The first part of a page is enough for its title.
+const isYouTube = (url) => /(^|\.)(youtube\.com|youtu\.be)$/i.test(new URL(url).hostname);
+
+// The first part of a page is enough for its title and image.
 async function readHead(res, limit = 300_000) {
   const reader = res.body.getReader();
   const decoder = new TextDecoder();
@@ -50,26 +52,32 @@ async function readHead(res, limit = 300_000) {
   return html;
 }
 
-// The title of a linked page, or "" if it can't be had within a few seconds.
-// YouTube answers through oEmbed; other sites through their HTML.
-async function fetchTitle(url) {
+// A linked page's title and preview image, each "" if it can't be had within a few seconds.
+// YouTube's title comes from oEmbed (its thumbnail is worked out in ops.js); other sites'
+// from their og: tags, else <title>.
+async function fetchPreview(url) {
+  const none = { title: "", image: "" };
   const { hostname } = new URL(url);
   // Only public names: no localhost, no bare IP addresses.
-  if (hostname === "localhost" || hostname.endsWith(".localhost") || /^[\d.]+$|:/.test(hostname)) return "";
+  if (hostname === "localhost" || hostname.endsWith(".localhost") || /^[\d.]+$|:/.test(hostname)) return none;
   const signal = AbortSignal.timeout(4000);
   try {
-    if (/(^|\.)(youtube\.com|youtu\.be)$/i.test(hostname)) {
+    if (isYouTube(url)) {
       const res = await fetch(`https://www.youtube.com/oembed?format=json&url=${encodeURIComponent(url)}`, { signal });
-      if (res.ok) return (await res.json()).title ?? "";
+      if (res.ok) return { title: (await res.json()).title ?? "", image: "" };
     }
     const res = await fetch(url, {
       signal,
       headers: { accept: "text/html", "user-agent": "Mozilla/5.0 (compatible; watchlist)" },
     });
-    if (!res.ok || !res.headers.get("content-type")?.includes("html")) return "";
-    return decodeEntities(titleFromHtml(await readHead(res))).trim();
+    if (!res.ok || !res.headers.get("content-type")?.includes("html")) return none;
+    const html = await readHead(res);
+    const meta = metaTags(html);
+    const title = meta["og:title"] || meta["twitter:title"] || html.match(/<title[^>]*>([^<]*)<\/title>/i)?.[1] || "";
+    const image = meta["og:image"] || meta["twitter:image"];
+    return { title: decodeEntities(title).trim(), image: image ? cleanUrl(new URL(image, res.url).href) : "" };
   } catch {
-    return "";
+    return none;
   }
 }
 
@@ -93,9 +101,13 @@ export default async (req) => {
     return json({ error: "Body is not JSON" }, 400);
   }
 
-  // A link added without a title gets the page's own.
-  const url = op?.op === "add" && !op.title?.trim?.() && cleanUrl(op.url);
-  if (url) op = { ...op, title: await fetchTitle(url) };
+  // A link gets the page's own title and image, unless it came with them.
+  const url = op?.op === "add" && cleanUrl(op.url);
+  const hasTitle = Boolean(op?.title?.trim?.());
+  if (url && !(hasTitle && (op.image || isYouTube(url)))) {
+    const preview = await fetchPreview(url);
+    op = { ...op, title: hasTitle ? op.title : preview.title, image: op.image || preview.image };
+  }
 
   // Two devices can save at the same moment: write only over the version just read, else read again.
   for (let attempt = 0; attempt < 5; attempt++) {

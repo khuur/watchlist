@@ -1,21 +1,26 @@
 import { useEffect, useState } from "react";
+import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { restrictToParentElement, restrictToVerticalAxis } from "@dnd-kit/modifiers";
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from "@dnd-kit/sortable";
+import AddForm from "./AddForm.jsx";
+import { Item, SortableItem } from "./Item.jsx";
 import { cleanUrl, findDuplicate } from "./ops.js";
 import { useList } from "./useList.js";
 
 const byWatchedAt = (a, b) => (b.watchedAt ?? "").localeCompare(a.watchedAt ?? "");
 
-// "Title https://…" gives both; a link alone gets its title from the server.
-function parseEntry(text) {
-  const link = text.match(/https?:\/\/\S+/i)?.[0] ?? "";
-  const title = link ? text.replace(link, "").replace(/^[\s\-–—:|·]+|[\s\-–—:|·]+$/g, "") : text;
-  return { title, url: cleanUrl(link) };
-}
-
-const hostOf = (url) => new URL(url).hostname.replace(/^www\./, "");
-
 export default function Watchlist({ listKey, onLogout }) {
   const { list, error, change } = useList(listKey);
   const [toast, setToast] = useState(null); // { message, undo? }
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   useEffect(() => {
     if (!toast) return;
@@ -47,13 +52,10 @@ export default function Watchlist({ listKey, onLogout }) {
 
   const watched = list.items.filter((it) => it.watched).sort(byWatchedAt);
 
-  function add(data) {
-    const text = data.get("entry").trim().replace(/\s+/g, " ");
-    if (!text) return;
-    const { title, url } = parseEntry(text);
-    const existing = findDuplicate(list.items, { title, url });
+  function add({ title = "", url = "", image, info }) {
+    const existing = findDuplicate(list.items, { title, url: cleanUrl(url) });
     if (existing) return setToast({ message: `“${existing.title}” is already on the list` });
-    change({ op: "add", id: crypto.randomUUID(), title, url });
+    change({ op: "add", id: crypto.randomUUID(), title, url, image, info });
   }
 
   function setWatched(item, isWatched) {
@@ -72,45 +74,47 @@ export default function Watchlist({ listKey, onLogout }) {
     setToast({ message: `Removed “${item.title}”`, undo: () => change({ op: "restore", item, index }) });
   }
 
-  const row = (item) => (
-    <li key={item.id}>
-      <label>
-        <input type="checkbox" checked={item.watched} onChange={(e) => setWatched(item, e.target.checked)} />
-        {cleanUrl(item.url) ? (
-          <a className="title" href={item.url} target="_blank" rel="noopener noreferrer">
-            <span className="name">{item.title}</span>
-            <small>{hostOf(item.url)} ↗</small>
-          </a>
-        ) : (
-          <span className="title name">{item.title}</span>
-        )}
-      </label>
-      <button type="button" className="remove" aria-label={`Remove ${item.title}`} onClick={() => remove(item)}>
-        ×
-      </button>
-    </li>
-  );
+  function onDragEnd({ active, over }) {
+    if (!over || active.id === over.id) return;
+    const to = open.findIndex((it) => it.id === over.id);
+    const reordered = arrayMove(open, open.findIndex((it) => it.id === active.id), to);
+    change({ op: "move", id: active.id, before: reordered[to + 1]?.id ?? null });
+  }
+
+  // What screen readers hear while moving an item, by title rather than by id.
+  const titleOf = (id) => open.find((it) => it.id === id)?.title;
+  const place = (id) => `${open.findIndex((it) => it.id === id) + 1} of ${open.length}`;
+  const announcements = {
+    onDragStart: ({ active }) => `Picked up ${titleOf(active.id)}, position ${place(active.id)}.`,
+    onDragOver: ({ active, over }) => over && `${titleOf(active.id)} moved to position ${place(over.id)}.`,
+    onDragEnd: ({ active, over }) => over && `${titleOf(active.id)} dropped at position ${place(over.id)}.`,
+    onDragCancel: ({ active }) => `${titleOf(active.id)} put back.`,
+  };
 
   return (
     <>
       {header}
 
-      <form className="row" action={add}>
-        <input
-          name="entry"
-          type="text"
-          placeholder="Add a title or paste a link…"
-          aria-label="Title or link"
-          autoComplete="off"
-          enterKeyHint="done"
-        />
-        <button>Add</button>
-      </form>
+      <AddForm onAdd={add} />
 
       {error && <p className="error" role="alert">{error}</p>}
 
       {open.length > 0 ? (
-        <ul>{open.map(row)}</ul>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          onDragEnd={onDragEnd}
+          accessibility={{ announcements }}
+        >
+          <SortableContext items={open.map((it) => it.id)} strategy={verticalListSortingStrategy}>
+            <ul>
+              {open.map((item) => (
+                <SortableItem key={item.id} item={item} onWatched={setWatched} onRemove={remove} />
+              ))}
+            </ul>
+          </SortableContext>
+        </DndContext>
       ) : (
         <p className="empty muted">
           {list.isNew ? "There's no list under this key yet. Add something to start one." : "Nothing to watch yet."}
@@ -120,7 +124,11 @@ export default function Watchlist({ listKey, onLogout }) {
       {watched.length > 0 && (
         <details>
           <summary>Watched ({watched.length})</summary>
-          <ul className="watched">{watched.map(row)}</ul>
+          <ul className="watched">
+            {watched.map((item) => (
+              <Item key={item.id} item={item} onWatched={setWatched} onRemove={remove} />
+            ))}
+          </ul>
         </details>
       )}
 
