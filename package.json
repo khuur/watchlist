@@ -1,16 +1,19 @@
 {
   "name": "watchlist",
   "private": true,
-  "description": "A simple list of what to watch, at watchlist.bleiweis.si",
   "type": "module",
   "scripts": {
-    "dev": "node dev.mjs"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/khuur/watchlist.git"
+    "dev": "vite",
+    "build": "vite build"
   },
   "dependencies": {
-    "@netlify/blobs": "^11.1.1"
+    "@netlify/blobs": "^11.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  },
+  "devDependencies": {
+    "@netlify/vite-plugin": "^3.0.1",
+    "@vitejs/plugin-react": "^6.1.1",
+    "vite": "^8.3.1"
   }
 }

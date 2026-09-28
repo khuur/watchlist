@@ -26,7 +26,6 @@
 }
 
 * { box-sizing: border-box; }
-[hidden] { display: none !important; }
 
 body {
   margin: 0;
@@ -51,8 +50,9 @@ header {
 }
 
 h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
-#count { color: var(--muted); font-size: 14px; }
+header .muted { font-size: 14px; }
 .muted { color: var(--muted); }
+.error { color: var(--error); }
 
 .row { display: flex; gap: 8px; }
 
@@ -86,21 +86,9 @@ button {
   cursor: pointer;
 }
 
-#login label { display: block; margin-bottom: 8px; font-weight: 600; }
-#login button { padding: 12px 18px; }
+.key-form label { display: block; margin-bottom: 8px; font-weight: 600; }
+.key-form button { padding: 12px 18px; }
 .hint { margin: 10px 0 0; font-size: 14px; }
-.error { min-height: 1.4em; color: var(--error); }
-
-.link {
-  display: block;
-  margin: 40px auto 0;
-  padding: 8px;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--muted);
-  background: none;
-}
-.link:hover { color: var(--text); text-decoration: underline; }
 
 ul {
   margin: 16px 0 0;
@@ -111,12 +99,9 @@ ul {
   border-radius: 12px;
   overflow: hidden;
 }
-ul:empty { display: none; }
 
 li { display: flex; align-items: center; border-top: 1px solid var(--line); }
 li:first-child { border-top: 0; }
-li.flash { animation: flash 1.4s ease-out; }
-@keyframes flash { from { background: color-mix(in srgb, var(--accent) 22%, transparent); } }
 
 li label {
   flex: 1;
@@ -128,7 +113,7 @@ li label {
   cursor: pointer;
 }
 li span { overflow-wrap: anywhere; }
-#done span { color: var(--muted); text-decoration: line-through; }
+.watched span { color: var(--muted); text-decoration: line-through; }
 
 input[type="checkbox"] {
   appearance: none;
@@ -167,12 +152,23 @@ input[type="checkbox"]:checked::after {
   .remove:focus-visible { opacity: 1; }
 }
 
-#empty { margin: 36px 0; text-align: center; }
+.empty { margin: 36px 0; text-align: center; }
 
 details { margin-top: 28px; }
 summary { font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
 
-#toast {
+.link {
+  display: block;
+  margin: 40px auto 0;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  background: none;
+}
+.link:hover { color: var(--text); text-decoration: underline; }
+
+.toast {
   position: fixed;
   left: 50%;
   bottom: max(16px, env(safe-area-inset-bottom));
@@ -185,11 +181,9 @@ summary { font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointe
   background: var(--text);
   border-radius: 10px;
   box-shadow: 0 6px 24px rgb(0 0 0 / 0.18);
-  opacity: 0;
-  pointer-events: none;
-  transform: translate(-50%, 16px);
-  transition: opacity 0.2s, transform 0.2s;
+  transform: translateX(-50%);
+  animation: toast-in 0.2s ease-out;
 }
-#toast.show { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
-#toast span { padding: 4px 0; }
-#toast button { padding: 6px 10px; color: var(--toast-accent); background: none; }
+.toast span { padding: 4px 0; }
+.toast button { padding: 6px 10px; color: var(--toast-accent); background: none; }
+@keyframes toast-in { from { opacity: 0; transform: translate(-50%, 16px); } }

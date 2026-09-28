@@ -9,32 +9,39 @@ Every list belongs to a key, typed once per device: the same key opens the same 
 the computer, and a new key starts a new, empty list. The key works as a password, so it should be
 something only you (or whoever shares the list with you) know. It needs at least 6 characters.
 
-## How it works
+## Stack
 
-- `public/`: the page, plain HTML, CSS and JS, no build step.
-- `public/ops.js`: the changes (add, watched, remove, restore). The page applies them at once and the
-  server applies them for good, so both use this file.
-- `netlify/functions/list.mjs`: `GET /api/list` returns the list, `POST /api/list` applies one change.
-  The key comes in the `Authorization: Bearer` header. Each list is one JSON value in Netlify Blobs
-  (store `watchlist`), named `list-` plus the SHA-256 of the key, so the key itself is never stored.
-  A write only goes over the version it read, so two devices saving at once don't lose each other's change.
-- `lib/watchlist.mjs`: the function's logic (key, read, change, write).
+React + Vite for the page, one Netlify Function for the API, Netlify Blobs for storage.
 
-## Run locally
+```
+src/
+  main.jsx          entry
+  App.jsx           remembers the key, shows KeyForm or Watchlist
+  KeyForm.jsx       asks for the key
+  Watchlist.jsx     the list
+  useList.js        loads the list, applies changes at once, saves them in order
+  ops.js            the list changes (add, watched, remove, restore), shared with the function
+netlify/functions/
+  list.mjs          GET /api/list returns the list, POST /api/list applies one change
+```
+
+The key travels in the `Authorization: Bearer` header. Each list is one JSON value in the `watchlist`
+Blobs store, named `list-` plus the SHA-256 of the key, so the key itself is never stored. A write only
+goes over the version it read, so two devices saving at once don't lose each other's change.
+
+## Develop
 
 ```sh
 npm install
-npm run dev        # http://localhost:8888, any key of 6+ characters
+npm run dev
 ```
 
-`dev.mjs` stands in for Netlify and keeps each list in `.data/list-<hash>.json`.
+`@netlify/vite-plugin` runs the function and a local Blobs store inside the Vite dev server.
 
-## Deploy (Netlify)
+## Deploy
 
-1. Netlify → *Add new site* → *Import from GitHub* → `khuur/watchlist`. The build settings come from
-   `netlify.toml` (no build command, publish `public`). Nothing else to set.
-2. *Domain management → Add a domain*: `watchlist.bleiweis.si`.
-3. At Domenca (DNS for bleiweis.si): a `CNAME` record, name `watchlist`, value `<site-name>.netlify.app`.
-   Netlify issues the HTTPS certificate once the record resolves.
+Netlify → *Add new site* → *Import from GitHub* → `khuur/watchlist`. Build settings come from
+`netlify.toml`. Every push to `main` deploys.
 
-Every push to `main` deploys.
+For the domain: *Domain management → Add a domain* → `watchlist.bleiweis.si`, then a `CNAME` record at
+Domenca, name `watchlist`, value `<site-name>.netlify.app`.

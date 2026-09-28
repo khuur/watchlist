@@ -1,6 +1,7 @@
 // Changes to the list. The page applies them at once, the server applies them for good,
 // so both share this one file.
 
+export const MIN_KEY = 6;
 export const MAX_TITLE = 200;
 
 const cleanTitle = (title) =>
