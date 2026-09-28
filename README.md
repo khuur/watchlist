@@ -5,6 +5,11 @@ A simple list of what to watch, at https://watchlist.bleiweis.si.
 Type a title and press Enter. Tick it once watched and it moves to **Watched**; × removes it, with Undo
 for a few seconds.
 
+Links work too: paste one on its own and the server looks up the page's title (YouTube through its
+oEmbed API, other sites through `og:title` or `<title>`), or type a title with the link
+(`Trailer for Ana https://youtu.be/…`) to keep your own. The title then opens the link. Only `http(s)`
+links are kept.
+
 Every list belongs to a key, typed once per device: the same key opens the same list on the phone and
 the computer, and a new key starts a new, empty list. The key works as a password, so it should be
 something only you (or whoever shares the list with you) know. It needs at least 6 characters.
@@ -23,6 +28,7 @@ src/
   ops.js            the list changes (add, watched, remove, restore), shared with the function
 netlify/functions/
   list.mjs          GET /api/list returns the list, POST /api/list applies one change
+                    (and fetches a pasted link's title)
 ```
 
 The key travels in the `Authorization: Bearer` header. Each list is one JSON value in the `watchlist`

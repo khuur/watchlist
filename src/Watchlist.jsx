@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
-import { MAX_TITLE, sameTitle } from "./ops.js";
+import { cleanUrl, findDuplicate } from "./ops.js";
 import { useList } from "./useList.js";
 
 const byWatchedAt = (a, b) => (b.watchedAt ?? "").localeCompare(a.watchedAt ?? "");
+
+// "Title https://…" gives both; a link alone gets its title from the server.
+function parseEntry(text) {
+  const link = text.match(/https?:\/\/\S+/i)?.[0] ?? "";
+  const title = link ? text.replace(link, "").replace(/^[\s\-–—:|·]+|[\s\-–—:|·]+$/g, "") : text;
+  return { title, url: cleanUrl(link) };
+}
+
+const hostOf = (url) => new URL(url).hostname.replace(/^www\./, "");
 
 export default function Watchlist({ listKey, onSwitchKey }) {
   const { list, error, change } = useList(listKey);
@@ -20,11 +29,12 @@ export default function Watchlist({ listKey, onSwitchKey }) {
   const watched = list.items.filter((it) => it.watched).sort(byWatchedAt);
 
   function add(data) {
-    const title = data.get("title").trim().replace(/\s+/g, " ");
-    if (!title) return;
-    const existing = open.find((it) => sameTitle(it.title, title));
+    const text = data.get("entry").trim().replace(/\s+/g, " ");
+    if (!text) return;
+    const { title, url } = parseEntry(text);
+    const existing = findDuplicate(list.items, { title, url });
     if (existing) return setToast({ message: `“${existing.title}” is already on the list` });
-    change({ op: "add", id: crypto.randomUUID(), title });
+    change({ op: "add", id: crypto.randomUUID(), title, url });
   }
 
   function setWatched(item, isWatched) {
@@ -47,7 +57,14 @@ export default function Watchlist({ listKey, onSwitchKey }) {
     <li key={item.id}>
       <label>
         <input type="checkbox" checked={item.watched} onChange={(e) => setWatched(item, e.target.checked)} />
-        <span>{item.title}</span>
+        {cleanUrl(item.url) ? (
+          <a className="title" href={item.url} target="_blank" rel="noopener noreferrer">
+            <span className="name">{item.title}</span>
+            <small>{hostOf(item.url)} ↗</small>
+          </a>
+        ) : (
+          <span className="title name">{item.title}</span>
+        )}
       </label>
       <button type="button" className="remove" aria-label={`Remove ${item.title}`} onClick={() => remove(item)}>
         ×
@@ -64,11 +81,10 @@ export default function Watchlist({ listKey, onSwitchKey }) {
 
       <form className="row" action={add}>
         <input
-          name="title"
+          name="entry"
           type="text"
-          placeholder="Add a film or series…"
-          aria-label="Title"
-          maxLength={MAX_TITLE}
+          placeholder="Add a title or paste a link…"
+          aria-label="Title or link"
           autoComplete="off"
           enterKeyHint="done"
         />

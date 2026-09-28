@@ -2,23 +2,44 @@
 // so both share this one file.
 
 export const MIN_KEY = 6;
-export const MAX_TITLE = 200;
+const MAX_TITLE = 200;
+const MAX_URL = 2000;
 
 const cleanTitle = (title) =>
   typeof title === "string" ? title.trim().replace(/\s+/g, " ").slice(0, MAX_TITLE) : "";
 
+// Only http(s) links are kept, so a shared list can't carry a javascript: link.
+export function cleanUrl(value) {
+  if (typeof value !== "string" || value.length > MAX_URL) return "";
+  try {
+    const url = new URL(value.trim());
+    return url.protocol === "http:" || url.protocol === "https:" ? url.href : "";
+  } catch {
+    return "";
+  }
+}
+
+// Stands in for a link's title until the page's own title is known.
+const titleFromUrl = (url) => url.replace(/^https?:\/\/(www\.)?/, "").slice(0, MAX_TITLE);
+
 const validId = (id) => typeof id === "string" && /^[\w-]{1,64}$/.test(id);
 
-export const sameTitle = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) === 0;
+const sameTitle = (a, b) => a.localeCompare(b, undefined, { sensitivity: "base" }) === 0;
+
+// An item still to watch with the same link, or with the same title when there's no link.
+export const findDuplicate = (items, { title, url }) =>
+  items.find((it) => !it.watched && (url ? it.url === url : sameTitle(it.title, title)));
 
 export function apply(items, op) {
   switch (op?.op) {
     case "add": {
-      const title = cleanTitle(op.title);
+      const url = cleanUrl(op.url);
+      const title = cleanTitle(op.title) || (url && titleFromUrl(url));
       if (!title) return { error: "Title is empty" };
-      if (items.some((it) => !it.watched && sameTitle(it.title, title))) return { items };
+      if (findDuplicate(items, { title, url })) return { items };
       const id = validId(op.id) && !items.some((it) => it.id === op.id) ? op.id : crypto.randomUUID();
-      return { items: [{ id, title, watched: false, added: new Date().toISOString() }, ...items] };
+      const item = { id, title, ...(url && { url }), watched: false, added: new Date().toISOString() };
+      return { items: [item, ...items] };
     }
     case "watched":
       return {
@@ -35,9 +56,11 @@ export function apply(items, op) {
       const title = cleanTitle(item?.title);
       if (!validId(item?.id) || !title) return { error: "Nothing to restore" };
       if (items.some((it) => it.id === item.id)) return { items };
+      const url = cleanUrl(item.url);
       const restored = {
         id: item.id,
         title,
+        ...(url && { url }),
         watched: Boolean(item.watched),
         added: typeof item.added === "string" ? item.added : new Date().toISOString(),
         ...(item.watched && typeof item.watchedAt === "string" && { watchedAt: item.watchedAt }),
