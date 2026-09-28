@@ -2,16 +2,19 @@
 
 A simple list of what to watch, at https://watchlist.bleiweis.si.
 
-The list is split into groups: **Podcasts, Songs, Movies, Education, Questions**. Pick one and type
-a title; it goes into that group. Tick the circle once it's done and it moves to the group's finished
-section (Watched, Listened, Done, Answered); only the circle ticks, clicking the rest of an item does
-nothing. ✎ edits the title, the link and the group; × removes the item, with Undo for a few seconds.
-Drag an item by its handle (⠿) to change its place; on a keyboard, focus the handle and press Space,
-the arrows, then Space.
+Items carry tags: **Podcasts, Songs, Movies, Education, Questions**, plus any you make. The pills at
+the top are filters: tap one to show only what has that tag, tap more to show what has any of them,
+**All** to show everything. What you add gets the filters that are on. An item's tags sit under its
+title; tap them to switch tags on and off for it, or to make a new one.
 
-In Movies, matching films and series from IMDb show up with their posters as you type; pick one to add
-it with its poster, year and IMDb link. Pressing Enter without picking takes the IMDb match with
-exactly that name, if there is one, and otherwise adds the plain text.
+Tick the circle once it's done and it moves to the finished section (Watched, Listened, Answered, Done);
+only the circle ticks, clicking the rest of an item does nothing. ✎ edits the title and the link;
+× removes the item, with Undo for a few seconds. Drag an item by its handle (⠿) to change its place;
+on a keyboard, focus the handle and press Space, the arrows, then Space.
+
+With the Movies filter on, matching films and series from IMDb show up with their posters as you type;
+pick one to add it with its poster, year and IMDb link. Pressing Enter without picking takes the IMDb
+match with exactly that name, if there is one, and otherwise adds the plain text.
 
 Links work too: paste one on its own and the server looks up the page's title and preview image
 (YouTube's title through its oEmbed API and its thumbnail from the video id; other sites through
@@ -31,13 +34,13 @@ src/
   main.jsx          entry
   App.jsx           remembers the key, shows KeyForm or Watchlist
   KeyForm.jsx       asks for the key
-  Watchlist.jsx     the list, one group at a time, reordered with dnd-kit
+  Watchlist.jsx     the list, filtered by tag, reordered with dnd-kit
   AddForm.jsx       the box to add to it, with IMDb suggestions
-  Item.jsx          one item, its edit form, and its draggable form
+  Item.jsx          one item, its tag picker, its edit form, and its draggable form
   useList.js        loads the list, applies changes at once, saves them in order
   ops.js            the list changes (add, watched, edit, remove, restore, move), shared with the function
-  groups.js         the groups and their wording
-  storage.js        what the device remembers (the key, the last group)
+  tags.js           the default tags and their wording
+  storage.js        what the device remembers (the key, the filters)
 netlify/functions/
   list.mjs          GET /api/list returns the list, POST /api/list applies one change
                     (and fetches a pasted link's title and image)

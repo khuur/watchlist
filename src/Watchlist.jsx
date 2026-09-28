@@ -8,18 +8,29 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import AddForm from "./AddForm.jsx";
-import { GROUPS, groupById } from "./groups.js";
 import { Item, SortableItem } from "./Item.jsx";
-import { cleanUrl, findDuplicate, groupOf } from "./ops.js";
+import { cleanUrl, findDuplicate, sameText, tagsOf } from "./ops.js";
 import { load, save } from "./storage.js";
+import { DEFAULT_TAGS, tagInfo } from "./tags.js";
 import { useList } from "./useList.js";
 
 const byWatchedAt = (a, b) => (b.watchedAt ?? "").localeCompare(a.watchedAt ?? "");
+const hasTag = (tags, tag) => tags.some((t) => sameText(t, tag));
+
+// The filters this device had on, kept as a JSON list of tag names.
+function loadFilters() {
+  try {
+    const saved = JSON.parse(load("watchlist-filters", "[]"));
+    return Array.isArray(saved) ? saved.filter((t) => typeof t === "string") : [];
+  } catch {
+    return [];
+  }
+}
 
 export default function Watchlist({ listKey, onLogout }) {
   const { list, error, change } = useList(listKey);
   const [toast, setToast] = useState(null); // { message, undo? }
-  const [group, setGroup] = useState(() => groupById(load("watchlist-group")).id);
+  const [filters, setFilters] = useState(loadFilters);
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -50,36 +61,45 @@ export default function Watchlist({ listKey, onLogout }) {
     );
   }
 
-  const current = groupById(group);
-  const inGroup = list.items.filter((it) => groupOf(it) === group);
-  const open = inGroup.filter((it) => !it.watched);
-  const watched = inGroup.filter((it) => it.watched).sort(byWatchedAt);
-  const openCount = (id) => list.items.filter((it) => !it.watched && groupOf(it) === id).length;
-
-  function showGroup(id) {
-    setGroup(id);
-    save("watchlist-group", id);
+  // The default tags, then any made on items, A to Z.
+  const allTags = DEFAULT_TAGS.map((t) => t.name);
+  for (const tag of list.items.flatMap(tagsOf).sort((a, b) => a.localeCompare(b))) {
+    if (!hasTag(allTags, tag)) allTags.push(tag);
   }
 
+  // Filters on tags that no longer exist are dropped. No filter shows everything;
+  // several show what has any of them.
+  const active = filters.filter((f) => hasTag(allTags, f));
+  const shown = active.length ? list.items.filter((it) => tagsOf(it).some((t) => hasTag(active, t))) : list.items;
+  const open = shown.filter((it) => !it.watched);
+  const watched = shown.filter((it) => it.watched).sort(byWatchedAt);
+  const openCount = (tag) => list.items.filter((it) => !it.watched && hasTag(tagsOf(it), tag)).length;
+  const only = active.length === 1 ? tagInfo(active[0]) : undefined;
+
+  function setFilter(next) {
+    setFilters(next);
+    save("watchlist-filters", next.length ? JSON.stringify(next) : "");
+  }
+
+  const toggleFilter = (tag) =>
+    setFilter(hasTag(active, tag) ? active.filter((f) => !sameText(f, tag)) : [...active, tag]);
+
+  // New items get the filters that are on, so they show where they were added.
   function add({ title = "", url = "", image, info }) {
-    const existing = findDuplicate(list.items, { title, url: cleanUrl(url), group });
+    const existing = findDuplicate(list.items, { title, url: cleanUrl(url) });
     if (existing) return setToast({ message: `“${existing.title}” is already on the list` });
-    change({ op: "add", id: crypto.randomUUID(), group, title, url, image, info });
+    change({ op: "add", id: crypto.randomUUID(), tags: active, title, url, image, info });
   }
 
   function setWatched(item, isWatched) {
     change({ op: "watched", id: item.id, watched: isWatched });
     if (isWatched) {
+      const done = tagsOf(item).map(tagInfo).find(Boolean)?.done ?? "Done";
       setToast({
-        message: `${groupById(groupOf(item)).done} “${item.title}”`,
+        message: `${done} “${item.title}”`,
         undo: () => change({ op: "watched", id: item.id, watched: false }),
       });
     }
-  }
-
-  function edit(op) {
-    change(op);
-    if (op.group) setToast({ message: `Moved to ${groupById(op.group).name}` });
   }
 
   function remove(item) {
@@ -109,19 +129,27 @@ export default function Watchlist({ listKey, onLogout }) {
     <>
       {header}
 
-      <nav className="groups" aria-label="Groups">
-        {GROUPS.map((g) => {
-          const count = openCount(g.id);
+      <nav className="filters" aria-label="Filter by tag">
+        <button type="button" className="chip" aria-pressed={!active.length} onClick={() => setFilter([])}>
+          All
+          <span className="n">{list.items.filter((it) => !it.watched).length}</span>
+        </button>
+        {allTags.map((tag) => {
+          const count = openCount(tag);
           return (
-            <button key={g.id} type="button" aria-pressed={g.id === group} onClick={() => showGroup(g.id)}>
-              {g.name}
+            <button key={tag} type="button" className="chip" aria-pressed={hasTag(active, tag)} onClick={() => toggleFilter(tag)}>
+              {tag}
               {count > 0 && <span className="n">{count}</span>}
             </button>
           );
         })}
       </nav>
 
-      <AddForm onAdd={add} placeholder={current.placeholder} suggest={group === "movies"} />
+      <AddForm
+        onAdd={add}
+        placeholder={only?.placeholder ?? "Add a title or paste a link…"}
+        suggest={hasTag(active, "Movies")}
+      />
 
       {error && <p className="error" role="alert">{error}</p>}
 
@@ -136,25 +164,43 @@ export default function Watchlist({ listKey, onLogout }) {
           <SortableContext items={open.map((it) => it.id)} strategy={verticalListSortingStrategy}>
             <ul>
               {open.map((item) => (
-                <SortableItem key={item.id} item={item} onWatched={setWatched} onEdit={edit} onRemove={remove} />
+                <SortableItem
+                  key={item.id}
+                  item={item}
+                  allTags={allTags}
+                  onWatched={setWatched}
+                  onEdit={change}
+                  onRemove={remove}
+                />
               ))}
             </ul>
           </SortableContext>
         </DndContext>
       ) : (
         <p className="empty muted">
-          {list.isNew ? "There's no list under this key yet. Add something to start one." : "Nothing here yet."}
+          {list.isNew
+            ? "There's no list under this key yet. Add something to start one."
+            : active.length
+              ? `Nothing tagged ${active.join(" or ")} to do.`
+              : "Nothing here yet."}
         </p>
       )}
 
       {watched.length > 0 && (
         <details>
           <summary>
-            {current.done} ({watched.length})
+            {only?.done ?? "Done"} ({watched.length})
           </summary>
           <ul className="watched">
             {watched.map((item) => (
-              <Item key={item.id} item={item} onWatched={setWatched} onEdit={edit} onRemove={remove} />
+              <Item
+                key={item.id}
+                item={item}
+                allTags={allTags}
+                onWatched={setWatched}
+                onEdit={change}
+                onRemove={remove}
+              />
             ))}
           </ul>
         </details>

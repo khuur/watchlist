@@ -68,9 +68,9 @@ h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
 
 .row { display: flex; gap: 8px; }
 
-/* One pill per group; they wrap rather than hide groups off-screen on a phone. */
-.groups { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
-.groups button {
+/* Pills that switch on and off: the filters, and the tags in the tag picker. They wrap rather
+   than hide off-screen on a phone. */
+.chip {
   padding: 7px 13px;
   font-size: 14px;
   font-weight: 500;
@@ -80,14 +80,14 @@ h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
   border: 1px solid var(--line);
   border-radius: 999px;
 }
-.groups button:hover { border-color: var(--muted); }
-.groups button[aria-pressed="true"] { color: var(--bg); background: var(--text); border-color: var(--text); }
-.groups .n { margin-left: 6px; font-size: 12px; opacity: 0.65; }
+.chip:hover { border-color: var(--muted); }
+.chip[aria-pressed="true"] { color: var(--bg); background: var(--text); border-color: var(--text); }
+.chip .n { margin-left: 6px; font-size: 12px; opacity: 0.65; }
+.filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
 
 input[type="text"],
 input[type="url"],
-input[type="password"],
-select {
+input[type="password"] {
   flex: 1;
   min-width: 0;
   padding: 12px 14px;
@@ -99,7 +99,6 @@ select {
 }
 
 input:focus-visible,
-select:focus-visible,
 button:focus-visible,
 summary:focus-visible {
   outline: 2px solid var(--accent);
@@ -131,7 +130,13 @@ ul {
   overflow: hidden;
 }
 
-li { display: flex; align-items: center; background: var(--card); border-top: 1px solid var(--line); }
+li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
 li:first-child { border-top: 0; }
 li.dragging { position: relative; z-index: 1; box-shadow: 0 8px 24px rgb(0 0 0 / 0.18); }
 
@@ -236,10 +241,44 @@ input[type="checkbox"]:checked::after {
   .action:focus-visible { opacity: 1; }
 }
 
+/* An item's tags: a tap opens the picker under it. */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+  padding: 0;
+  font-weight: 400;
+  color: inherit;
+  background: none;
+  border-radius: 6px;
+}
+.tag {
+  padding: 2px 8px;
+  font-size: 12px;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--text) 7%, transparent);
+  border-radius: 999px;
+}
+.tag.none { background: none; border: 1px dashed var(--line); }
+.tags:hover .tag { color: var(--text); }
+
+.picker {
+  flex-basis: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px 12px;
+}
+.picker .chip { padding: 5px 11px; font-size: 13px; }
+.picker form { display: flex; }
+.picker input[type="text"] { flex: none; width: 110px; padding: 5px 11px; font-size: 13px; border-radius: 999px; }
+.picker .done { margin-left: auto; color: var(--accent-text); background: var(--accent); border-color: var(--accent); }
+
 .edit { flex: 1; display: grid; gap: 8px; padding: 12px; }
-.edit input,
-.edit select { padding: 10px 12px; }
-.edit select { flex: 1; }
+.edit input { padding: 10px 12px; }
+.edit .buttons { justify-content: flex-end; }
 .edit button { padding: 10px 16px; }
 button.secondary { color: var(--text); background: none; border: 1px solid var(--line); }
 

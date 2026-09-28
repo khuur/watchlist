@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from "react";
-import { cleanUrl, sameTitle } from "./ops.js";
+import { cleanUrl, sameText } from "./ops.js";
 
 const LINK = /https?:\/\/\S+/i;
 
@@ -70,7 +70,7 @@ export default function AddForm({ onAdd, placeholder, suggest }) {
     if (suggestions[active]) return pick(suggestions[active]);
     reset();
     if (LINK.test(query)) return onAdd(parseEntry(query));
-    const match = suggest && (await search(query)).find((r) => sameTitle(r.title, query));
+    const match = suggest && (await search(query)).find((r) => sameText(r.title, query));
     onAdd(match || { title: query });
   }
 
