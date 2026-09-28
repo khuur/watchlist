@@ -13,7 +13,7 @@ function parseEntry(text) {
 
 const hostOf = (url) => new URL(url).hostname.replace(/^www\./, "");
 
-export default function Watchlist({ listKey, onSwitchKey }) {
+export default function Watchlist({ listKey, onLogout }) {
   const { list, error, change } = useList(listKey);
   const [toast, setToast] = useState(null); // { message, undo? }
 
@@ -23,9 +23,28 @@ export default function Watchlist({ listKey, onSwitchKey }) {
     return () => clearTimeout(timer);
   }, [toast]);
 
-  if (!list) return <p className={error ? "error" : "muted"}>{error || "Loading…"}</p>;
+  const open = list?.items.filter((it) => !it.watched) ?? [];
 
-  const open = list.items.filter((it) => !it.watched);
+  // Shown while loading too, so a list that won't load can still be left.
+  const header = (
+    <header>
+      <h1>Watchlist</h1>
+      {open.length > 0 && <span className="muted count">{open.length} to watch</span>}
+      <button type="button" className="logout" onClick={onLogout}>
+        Log out
+      </button>
+    </header>
+  );
+
+  if (!list) {
+    return (
+      <>
+        {header}
+        <p className={error ? "error" : "muted"}>{error || "Loading…"}</p>
+      </>
+    );
+  }
+
   const watched = list.items.filter((it) => it.watched).sort(byWatchedAt);
 
   function add(data) {
@@ -74,10 +93,7 @@ export default function Watchlist({ listKey, onSwitchKey }) {
 
   return (
     <>
-      <header>
-        <h1>Watchlist</h1>
-        {open.length > 0 && <span className="muted">{open.length} to watch</span>}
-      </header>
+      {header}
 
       <form className="row" action={add}>
         <input
@@ -107,10 +123,6 @@ export default function Watchlist({ listKey, onSwitchKey }) {
           <ul className="watched">{watched.map(row)}</ul>
         </details>
       )}
-
-      <button type="button" className="link" onClick={onSwitchKey}>
-        Use another key
-      </button>
 
       {toast && (
         <div className="toast" role="status">

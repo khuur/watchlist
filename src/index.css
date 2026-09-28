@@ -43,14 +43,28 @@ main {
 
 header {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
+  align-items: center;
   gap: 12px;
+  min-height: 40px;
   margin-bottom: 20px;
 }
 
 h1 { margin: 0; font-size: 28px; letter-spacing: -0.02em; }
-header .muted { font-size: 14px; }
+.count { font-size: 14px; white-space: nowrap; }
+@media (max-width: 359px) { .count { display: none; } }
+
+.logout {
+  flex: none;
+  margin-left: auto;
+  white-space: nowrap;
+  padding: 7px 14px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+.logout:hover { border-color: var(--muted); }
 .muted { color: var(--muted); }
 .error { color: var(--error); }
 
@@ -166,17 +180,6 @@ input[type="checkbox"]:checked::after {
 
 details { margin-top: 28px; }
 summary { font-size: 14px; font-weight: 600; color: var(--muted); cursor: pointer; }
-
-.link {
-  display: block;
-  margin: 40px auto 0;
-  padding: 8px;
-  font-size: 14px;
-  font-weight: 400;
-  color: var(--muted);
-  background: none;
-}
-.link:hover { color: var(--text); text-decoration: underline; }
 
 .toast {
   position: fixed;

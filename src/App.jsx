@@ -31,7 +31,7 @@ export default function App() {
   return (
     <main>
       {listKey ? (
-        <Watchlist key={listKey} listKey={listKey} onSwitchKey={() => openList("")} />
+        <Watchlist key={listKey} listKey={listKey} onLogout={() => openList("")} />
       ) : (
         <KeyForm onOpen={openList} />
       )}
