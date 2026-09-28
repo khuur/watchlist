@@ -1,0 +1,16 @@
+{
+  "name": "watchlist",
+  "private": true,
+  "description": "A simple list of what to watch, at watchlist.bleiweis.si",
+  "type": "module",
+  "scripts": {
+    "dev": "node dev.mjs"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/khuur/watchlist.git"
+  },
+  "dependencies": {
+    "@netlify/blobs": "^11.1.1"
+  }
+}
